@@ -1,0 +1,1909 @@
+
+# load library
+library(readxl)
+
+# set file path
+data_path <- "J:/Research/Research/NCDdeathsWorld/NCDDeathsData.xlsx"
+
+# read sheet 1
+df <- read_excel(data_path, sheet = "Sheet1")
+
+# view first rows
+head(df)
+
+
+
+# -----------------------------
+# Load libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(writexl)
+
+# -----------------------------
+# File path
+# -----------------------------
+data_path <- "J:/Research/Research/NCDdeathsWorld/NCDDeathsData.xlsx"
+
+# -----------------------------
+# Read data
+# -----------------------------
+df <- read_excel(data_path, sheet = "Sheet1")
+
+# -----------------------------
+# Country-level summary
+# -----------------------------
+country_summary <- df %>%
+  group_by(Country) %>%
+  summarise(
+    mean_Y = mean(Y, na.rm = TRUE),
+    sd_Y   = sd(Y, na.rm = TRUE),
+    min_Y  = min(Y, na.rm = TRUE),
+    max_Y  = max(Y, na.rm = TRUE),
+    Q1     = quantile(Y, 0.25, na.rm = TRUE),
+    Q3     = quantile(Y, 0.75, na.rm = TRUE)
+  ) %>%
+  ungroup()
+
+# -----------------------------
+# Top 10 high incidence countries
+# -----------------------------
+top10_high <- country_summary %>%
+  arrange(desc(mean_Y)) %>%
+  slice(1:10) %>%
+  mutate(Group = "Top 10 High Incidence")
+
+# -----------------------------
+# Bottom 10 low incidence countries
+# -----------------------------
+top10_low <- country_summary %>%
+  arrange(mean_Y) %>%
+  slice(1:10) %>%
+  mutate(Group = "Top 10 Low Incidence")
+
+# -----------------------------
+# Combine tables
+# -----------------------------
+final_table <- bind_rows(top10_high, top10_low) %>%
+  select(Group, Country, mean_Y, sd_Y, min_Y, Q1, Q3, max_Y)
+
+# -----------------------------
+# Save in same directory
+# -----------------------------
+output_path <- "J:/Research/Research/NCDdeathsWorld/Top10_Country_NCD_Summary.xlsx"
+
+write_xlsx(final_table, output_path)
+
+# -----------------------------
+# Print result
+# -----------------------------
+print(final_table)
+
+
+
+
+
+
+
+
+# -----------------------------
+# Load libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(writexl)
+
+# -----------------------------
+# Load dataset
+# -----------------------------
+data_path <- "J:/Research/Research/NCDdeathsWorld/NCDDeathsData.xlsx"
+df <- read_excel(data_path, sheet = "Sheet1")
+
+# -----------------------------
+# Convert wide to long format
+# -----------------------------
+long_df <- df %>%
+  pivot_longer(
+    cols = starts_with("X"),
+    names_to = "Variable",
+    values_to = "Value"
+  )
+
+# -----------------------------
+# Assign theoretical domains
+# -----------------------------
+long_df <- long_df %>%
+  mutate(Domain = case_when(
+    Variable %in% c("X1","X2","X3") ~ "BMI outcomes",
+    
+    Variable %in% c("X4","X5","X6","X7","X8") ~ "Metabolic & lifestyle factors",
+    
+    Variable %in% c("X9","X10","X11","X12","X13","X14") ~ "Socioeconomic & education factors",
+    
+    Variable %in% c("X15","X16","X17","X18") ~ "Demographic & urbanization factors",
+    
+    Variable %in% c("X19","X20","X21","X22","X23","X24","X25") ~ 
+      "Infrastructure, energy & health system factors",
+    
+    TRUE ~ "Other"
+  ))
+
+# -----------------------------
+# Standardize variables (solve unit problem)
+# -----------------------------
+long_df <- long_df %>%
+  group_by(Variable) %>%
+  mutate(Value_std = (Value - mean(Value, na.rm = TRUE)) / sd(Value, na.rm = TRUE)) %>%
+  ungroup()
+
+# -----------------------------
+# Domain-level summary statistics
+# -----------------------------
+risk_domain_summary <- long_df %>%
+  group_by(Domain) %>%
+  summarise(
+    mean_effect = mean(Value_std, na.rm = TRUE),
+    sd_effect   = sd(Value_std, na.rm = TRUE),
+    min_effect  = min(Value_std, na.rm = TRUE),
+    Q1          = quantile(Value_std, 0.25, na.rm = TRUE),
+    Q3          = quantile(Value_std, 0.75, na.rm = TRUE),
+    max_effect  = max(Value_std, na.rm = TRUE),
+    n           = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(abs(mean_effect)))
+
+# -----------------------------
+# Country-level summary of Y
+# -----------------------------
+country_summary <- df %>%
+  group_by(Country) %>%
+  summarise(
+    mean_Y = mean(Y, na.rm = TRUE),
+    sd_Y   = sd(Y, na.rm = TRUE),
+    min_Y  = min(Y, na.rm = TRUE),
+    Q1     = quantile(Y, 0.25, na.rm = TRUE),
+    Q3     = quantile(Y, 0.75, na.rm = TRUE),
+    max_Y  = max(Y, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+top10_high <- country_summary %>%
+  arrange(desc(mean_Y)) %>%
+  slice(1:10) %>%
+  mutate(Group = "Top 10 High Incidence")
+
+top10_low <- country_summary %>%
+  arrange(mean_Y) %>%
+  slice(1:10) %>%
+  mutate(Group = "Top 10 Low Incidence")
+
+country_final <- bind_rows(top10_high, top10_low) %>%
+  select(Group, everything())
+
+# -----------------------------
+# Save outputs to same folder
+# -----------------------------
+output_path <- "J:/Research/Research/NCDdeathsWorld/"
+
+write_xlsx(list(
+  Risk_Domain_Summary = risk_domain_summary,
+  Country_Summary = country_summary,
+  Top_Countries = country_final
+),
+paste0(output_path, "NCD_Risk_Domain_Analysis.xlsx"))
+
+# -----------------------------
+# Print results
+# -----------------------------
+print(risk_domain_summary)
+print(country_final)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(writexl)
+
+# -----------------------------
+# Read data
+# -----------------------------
+data_path <- "J:/Research/Research/NCDdeathsWorld/NCDDeathsData.xlsx"
+df <- read_excel(data_path, sheet = "Sheet1")
+
+# -----------------------------
+# Year wise summary with 95% CI
+# -----------------------------
+year_summary <- df %>%
+  group_by(Year) %>%
+  summarise(
+    mean_Y = mean(Y, na.rm = TRUE),
+    sd_Y = sd(Y, na.rm = TRUE),
+    n = n(),
+    se = sd_Y / sqrt(n),
+    ci_lower = mean_Y - 1.96 * se,
+    ci_upper = mean_Y + 1.96 * se,
+    .groups = "drop"
+  )
+
+# order years
+year_summary$Year <- factor(year_summary$Year,
+                            levels = sort(unique(year_summary$Year)))
+
+# -----------------------------
+# Custom colors
+# -----------------------------
+year_colors <- scales::hue_pal(l = 60, c = 90)(length(unique(year_summary$Year)))
+
+# -----------------------------
+# Plot
+# -----------------------------
+p <- ggplot(year_summary, aes(x = Year, y = mean_Y, fill = Year)) +
+  
+  geom_bar(stat = "identity", color = "black", width = 0.8) +
+  
+  geom_errorbar(
+    aes(ymin = ci_lower, ymax = ci_upper),
+    width = 0.25,
+    color = "black",
+    size = 0.6
+  ) +
+  
+  scale_fill_manual(values = year_colors) +
+  
+  theme_minimal(base_size = 13) +
+  
+  labs(
+    title = "A",
+    x = "Year",
+    y = "Mean NCD deaths per 1000 (95% CI)"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5),
+    plot.title = element_text(face = "bold"),
+    legend.position = "none"
+  )
+
+p
+# -----------------------------
+# Save high resolution figure
+# -----------------------------
+ggsave(
+  filename = "J:/Research/Research/NCDdeathsWorld/NCD_year_plot.png",
+  plot = p,
+  width = 9,
+  height = 5,
+  dpi = 600
+)
+
+# -----------------------------
+# Save Excel output
+# -----------------------------
+write_xlsx(
+  year_summary,
+  "J:/Research/Research/NCDdeathsWorld/NCD_year_summary.xlsx"
+)
+
+
+
+
+
+
+# -----------------------------
+# Load libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# -----------------------------
+# Read data
+# -----------------------------
+data_path <- "J:/Research/Research/NCDdeathsWorld/NCDDeathsData.xlsx"
+df <- read_excel(data_path, sheet = "Sheet1")
+
+# -----------------------------
+# Region mapping
+# -----------------------------
+region_map <- c(
+  
+  # South Asia
+  "Afghanistan"="South Asia","Bangladesh"="South Asia","Bhutan"="South Asia",
+  "India"="South Asia","Maldives"="South Asia","Nepal"="South Asia",
+  "Pakistan"="South Asia","Sri Lanka"="South Asia",
+  
+  # East Asia & Pacific
+  "China"="East Asia & Pacific","Japan"="East Asia & Pacific",
+  "Republic of Korea"="East Asia & Pacific",
+  "Democratic People's Republic of Korea"="East Asia & Pacific",
+  "Indonesia"="East Asia & Pacific","Thailand"="East Asia & Pacific",
+  "Viet Nam"="East Asia & Pacific","Philippines"="East Asia & Pacific",
+  "Malaysia"="East Asia & Pacific","Singapore"="East Asia & Pacific",
+  "Cambodia"="East Asia & Pacific","Lao People's Democratic Republic"="East Asia & Pacific",
+  "Myanmar"="East Asia & Pacific","Mongolia"="East Asia & Pacific",
+  "Australia"="East Asia & Pacific","New Zealand"="East Asia & Pacific",
+  "Fiji"="East Asia & Pacific","Papua New Guinea"="East Asia & Pacific",
+  
+  # Europe & Central Asia
+  "Germany"="Europe & Central Asia","France"="Europe & Central Asia",
+  "Italy"="Europe & Central Asia","Spain"="Europe & Central Asia",
+  "United Kingdom of Great Britain and Northern Ireland"="Europe & Central Asia",
+  "Russian Federation"="Europe & Central Asia","Turkey"="Europe & Central Asia",
+  "Ukraine"="Europe & Central Asia",
+  
+  # Sub-Saharan Africa
+  "Nigeria"="Sub-Saharan Africa","Ethiopia"="Sub-Saharan Africa",
+  "South Africa"="Sub-Saharan Africa","Kenya"="Sub-Saharan Africa",
+  "Ghana"="Sub-Saharan Africa","Uganda"="Sub-Saharan Africa",
+  
+  # Middle East & North Africa
+  "Egypt"="Middle East & North Africa","Iran (Islamic Republic of)"="Middle East & North Africa",
+  "Saudi Arabia"="Middle East & North Africa","Morocco"="Middle East & North Africa",
+  
+  # Latin America & Caribbean
+  "Brazil"="Latin America & Caribbean","Mexico"="Latin America & Caribbean",
+  "Argentina"="Latin America & Caribbean","Colombia"="Latin America & Caribbean",
+  
+  # North America
+  "United States of America"="North America",
+  "Canada"="North America"
+)
+
+df$Region <- region_map[df$Country]
+
+# remove missing
+df <- df %>% filter(!is.na(Region))
+
+# -----------------------------
+# Regional yearly mean
+# -----------------------------
+region_year <- df %>%
+  group_by(Region, Year) %>%
+  summarise(
+    mean_Y = mean(Y, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# -----------------------------
+# Plot
+# -----------------------------
+# make sure Year is treated as categorical (VERY IMPORTANT)
+region_year$Year <- factor(region_year$Year,
+                           levels = sort(unique(region_year$Year)))
+
+p <- ggplot(region_year, aes(x = Year, y = Region, fill = mean_Y)) +
+  
+  geom_tile(color = "white", linewidth = 0.4) +
+  
+  scale_fill_gradientn(
+    colors = c("#102A43", "#1F5F8B", "orange", "darkred"),
+    name = "NCD deaths per 1000"
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  
+  labs(
+    title = "B",
+    x = "Year",
+    y = "Region"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = -.2),
+    panel.grid = element_blank(),
+    legend.position = "bottom"
+  )
+p
+# -----------------------------
+# Save high resolution figure
+# -----------------------------
+ggsave(
+  filename = "J:/Research/Research/NCDdeathsWorld/NCD_region_heatmap.png",
+  plot = p,
+  width = 10,
+  height = 5,
+  dpi = 600
+)
+
+# -----------------------------
+# Save Excel output
+# -----------------------------
+write_xlsx(
+  region_year,
+  "J:/Research/Research/NCDdeathsWorld/NCD_region_year_summary.xlsx"
+)
+
+
+
+
+# -----------------------------
+# Load libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(writexl)
+
+# -----------------------------
+# Read data
+# -----------------------------
+data_path <- "J:/Research/Research/NCDdeathsWorld/NCDDeathsData.xlsx"
+df <- read_excel(data_path, sheet = "Sheet1")
+
+# -----------------------------
+# Country-level average (2000–2021)
+# -----------------------------
+country_avg <- df %>%
+  group_by(Country) %>%
+  summarise(
+    avg_Y = mean(Y, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# -----------------------------
+# Load world map
+# -----------------------------
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# remove Antarctica
+world <- world %>% filter(admin != "Antarctica")
+
+# -----------------------------
+# Merge data
+# -----------------------------
+map_data <- world %>%
+  left_join(country_avg, by = c("name" = "Country"))
+
+# -----------------------------
+# Plot
+# -----------------------------
+# Libraries
+# -----------------------------
+library(ggplot2)
+library(dplyr)
+library(sf)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(ggspatial)
+
+# -----------------------------
+# Map plot
+# -----------------------------
+p <- ggplot(map_data) +
+  
+  geom_sf(aes(fill = avg_Y), color = "black", size = 0.2) +
+  
+  scale_fill_gradientn(
+    colors = c("#0B3C5D", "#1D7874", "#F4D35E", "#EE964B", "#F95738"),
+    na.value = "transparent",
+    name = "Avg. NCD \n(deaths per 1000)"
+  ) +
+  
+  # -----------------------------
+# North arrow
+# -----------------------------
+annotation_north_arrow(
+  location = "tr",
+  which_north = "true",
+  style = north_arrow_fancy_orienteering()
+) +
+  
+  # -----------------------------
+# Scale bar (km)
+# -----------------------------
+annotation_scale(
+  location = "bl",
+  width_hint = 0.3
+) +
+  
+  # -----------------------------
+# Lat/Lon grid
+# -----------------------------
+coord_sf(datum = NA) +
+  
+  theme_minimal(base_size = 14) +
+  
+  labs(
+    title = "C",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  
+  theme(
+    panel.grid = element_line(color = "grey85", linewidth = 0.3),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    plot.title = element_text(face = "bold"),
+    legend.position = "right"
+  )
+p
+# -----------------------------
+# Save high resolution figure
+# -----------------------------
+ggsave(
+  filename = "J:/Research/Research/NCDdeathsWorld/NCD_global_avg_map.png",
+  plot = p,
+  width = 10,
+  height = 5,
+  dpi = 600
+)
+
+# -----------------------------
+# Save Excel output
+# -----------------------------
+write_xlsx(
+  country_avg,
+  "J:/Research/Research/NCDdeathsWorld/NCD_country_average.xlsx"
+)
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# -----------------------------
+# Data input
+# -----------------------------
+data <- data.frame(
+  Model = rep(c("GLM","XGBoost","RF","LightGBM","DT"), each = 2),
+  Dataset = rep(c("Train","Test"), times = 5),
+  
+  RMSE = c(128.04, 94.52, 29.92, 41.49, 34.10, 43.89, 31.55, 41.60, 72.90, 70.86),
+  MAE  = c(100.48, 94.49, 20.05, 41.36, 20.59, 43.88, 20.54, 41.51, 44.73, 71.33),
+  MAPE = c(0.178, 0.192, 0.035, 0.080, 0.036, 0.084, 0.036, 0.080, 0.076, 0.131)
+)
+
+# -----------------------------
+# Convert to long format
+# -----------------------------
+data_long <- data %>%
+  pivot_longer(cols = c(RMSE, MAE, MAPE),
+               names_to = "Metric",
+               values_to = "Value")
+
+# -----------------------------
+# Order models
+# -----------------------------
+data_long$Model <- factor(data_long$Model,
+                          levels = c("GLM","XGBoost","RF","LightGBM","DT"))
+
+# -----------------------------
+# Plot (2-panel layout)
+# -----------------------------
+p <- ggplot(data_long, aes(x = Model, y = Value, fill = Model)) +
+  
+  geom_bar(stat = "identity",
+           position = position_dodge(width = 0.7),
+           color = "black",
+           width = 0.6) +
+  
+  facet_wrap(~Metric, scales = "free_y") +
+  
+  scale_fill_manual(values = c(
+    "GLM" = "#264653",
+    "XGBoost" = "#2A9D8F",
+    "RF" = "#E9C46A",
+    "LightGBM" = "#F4A261",
+    "DT" = "#1D3557"
+  )) +
+  
+  theme_minimal(base_size = 13) +
+  
+  labs(
+    title = "Model performance comparison across metrics",
+    x = "Machine learning models",
+    y = "Performance value",
+    fill = "Model"
+  ) +
+  
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.x = element_text(angle = 25, hjust = 1),
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold")
+  )
+p
+# -----------------------------
+# Save figure
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/model_all_metrics.png",
+  p,
+  width = 10,
+  height = 6,
+  dpi = 600
+)
+
+
+
+
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# -----------------------------
+# Read data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/XGB_FAST_OUTPUT.xlsx"
+df_feat <- read_excel(file_path, sheet = "All_Features")
+
+# -----------------------------
+# Top 10 features
+# -----------------------------
+top10 <- df_feat %>%
+  arrange(desc(Importance)) %>%
+  slice(1:10)
+
+top10$Feature <- factor(top10$Feature,
+                        levels = rev(top10$Feature))
+
+# -----------------------------
+# Professional muted palette (no bright colors)
+# -----------------------------
+feature_colors <- c(
+  "#2C3E50", "#34495E", "#5D6D7E", "#7F8C8D", "#95A5A6",
+  "#566573", "#1F618D", "#2874A6", "#117A65", "#AF601A"
+)
+
+# -----------------------------
+# Plot
+# -----------------------------
+p <- ggplot(top10, aes(x = Feature, y = Importance, fill = Feature)) +
+  
+  geom_bar(stat = "identity",
+           color = "black",
+           width = 0.7) +
+  
+  geom_errorbar(
+    aes(ymin = L, ymax = U),
+    width = 0.2,
+    color = "black",
+    linewidth = 0.6
+  ) +
+  
+  scale_fill_manual(values = feature_colors) +
+  
+  coord_flip() +
+  
+  theme_minimal(base_size = 13) +
+  
+  labs(
+    title = "A",
+    x = "Features",
+    y = "Importance score"
+  ) +
+  
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid = element_blank(),
+    legend.position = "none"
+  )
+p
+# -----------------------------
+# Save figure
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/XGB_top10_clean.png",
+  p,
+  width = 6,
+  height = 5,
+  dpi = 600
+)
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(writexl)
+
+# -----------------------------
+# Read data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/XGB_FAST_OUTPUT.xlsx"
+df_feat <- read_excel(file_path, sheet = "All_Features")
+
+# -----------------------------
+# Map features to categories
+# -----------------------------
+df_feat <- df_feat %>%
+  mutate(Category = case_when(
+    Feature %in% c("X1","X2","X3") ~ "BMI outcomes",
+    Feature %in% c("X4","X5","X6","X7","X8") ~ "Metabolic & lifestyle",
+    Feature %in% c("X9","X10","X11","X12","X13","X14") ~ "Socioeconomic & education",
+    Feature %in% c("X15","X16","X17","X18") ~ "Demographic & urbanization",
+    Feature %in% c("X19","X20","X21","X22","X23","X24","X25") ~ "Health system & infrastructure"
+  ))
+
+# -----------------------------
+# Aggregate importance + CI
+# -----------------------------
+cat_imp <- df_feat %>%
+  group_by(Category) %>%
+  summarise(
+    Importance = sum(Importance),
+    L = sum(L),
+    U = sum(U),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Importance))
+
+# -----------------------------
+# Save values to Excel
+# -----------------------------
+write_xlsx(
+  cat_imp,
+  "J:/Research/Research/NCDdeathsWorld/category_importance_values.xlsx"
+)
+
+# -----------------------------
+# Order for plotting
+# -----------------------------
+cat_imp$Category <- factor(cat_imp$Category,
+                           levels = rev(cat_imp$Category))
+
+# -----------------------------
+# Colors (clean professional)
+# -----------------------------
+cat_colors <- c(
+  "#1F3A5F",
+  "#2A9D8F",
+  "#E9C46A",
+  "#6D6875",
+  "#264653"
+)
+
+# -----------------------------
+# Plot
+# -----------------------------
+p <- ggplot(cat_imp, aes(x = Category, y = Importance, fill = Category)) +
+  
+  geom_bar(stat = "identity",
+           color = "black",
+           width = 0.7) +
+  
+  geom_errorbar(
+    aes(ymin = L, ymax = U),
+    width = 0.2,
+    color = "black",
+    linewidth = 0.7
+  ) +
+  
+  scale_fill_manual(values = cat_colors) +
+  
+  coord_flip() +
+  
+  theme_minimal(base_size = 13) +
+  
+  labs(
+    title = "B",
+    x = "Categories",
+    y = "Total importance (gain)"
+  ) +
+  
+  theme(
+    plot.title = element_text(face = "bold", hjust = -.5),
+    panel.grid = element_blank(),
+    legend.position = "none"
+  )
+p
+# -----------------------------
+# Save plot (high resolution)
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/category_importance_plot.png",
+  p,
+  width = 6,
+  height = 5,
+  dpi = 600
+)
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# -----------------------------
+# Read data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/XGB_FAST_OUTPUT.xlsx"
+df_feat <- read_excel(file_path, sheet = "Region")
+
+# -----------------------------
+# Convert to long format
+# -----------------------------
+df_long <- df_feat %>%
+  pivot_longer(
+    cols = -Region,
+    names_to = "Feature",
+    values_to = "Importance"
+  )
+
+# -----------------------------
+# Order features (by mean importance)
+# -----------------------------
+feature_order <- df_long %>%
+  group_by(Feature) %>%
+  summarise(m = mean(Importance)) %>%
+  arrange(desc(m)) %>%
+  pull(Feature)
+
+df_long$Feature <- factor(df_long$Feature, levels = feature_order)
+
+# -----------------------------
+# Plot heatmap
+# -----------------------------
+p <- ggplot(df_long, aes(x = Feature, y = Region, fill = Importance)) +
+  
+  geom_tile(color = "white", linewidth = 0.4) +
+  
+  scale_fill_gradientn(
+    colors = c("#102A43", "skyblue", "orange", "darkred"),
+    name = "Importance"
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  
+  labs(
+    title = "C",
+    x = "Features",
+    y = "Region"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = -.2),
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+p
+# -----------------------------
+# Save plot
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/region_heatmap.png",
+  p,
+  width = 10,
+  height = 5,
+  dpi = 600
+)
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# -----------------------------
+# Read data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/XGB_FAST_OUTPUT.xlsx"
+df_feat <- read_excel(file_path, sheet = "Year")
+
+# -----------------------------
+# Convert to long format
+# -----------------------------
+df_long <- df_feat %>%
+  pivot_longer(
+    cols = -Year,
+    names_to = "Feature",
+    values_to = "Importance"
+  )
+
+# -----------------------------
+# Order features (by importance)
+# -----------------------------
+feature_order <- df_long %>%
+  group_by(Feature) %>%
+  summarise(m = mean(Importance)) %>%
+  arrange(desc(m)) %>%
+  pull(Feature)
+
+df_long$Feature <- factor(df_long$Feature, levels = feature_order)
+
+# order years properly
+df_long$Year <- factor(df_long$Year,
+                       levels = sort(unique(df_long$Year)))
+
+# -----------------------------
+# Plot heatmap
+# -----------------------------
+p <- ggplot(df_long, aes(x = Feature, y = Year, fill = Importance)) +
+  
+  geom_tile(color = "white", linewidth = 0.3) +
+  
+  scale_fill_gradientn(
+    colors = c("#102A43", "skyblue", "orange", "darkred"),
+    name = "Importance"
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  
+  labs(
+    title = "D",
+    x = "Features",
+    y = "Year"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold"),
+    legend.position = "bottom",
+    panel.grid = element_blank()
+  )
+p
+# -----------------------------
+# Save plot
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/year_heatmap.png",
+  p,
+  width = 10,
+  height = 6,
+  dpi = 600
+)
+
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# -----------------------------
+# Read data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/NCD_Spillover_Policy_Results.xlsx"
+df <- read_excel(file_path, sheet = "Spillover_Effects")
+
+# -----------------------------
+# Order variables (by total effect)
+# -----------------------------
+df <- df %>%
+  arrange(Total_Effect)
+
+df$Variable_Code <- factor(df$Variable_Code,
+                           levels = df$Variable_Code)
+
+# -----------------------------
+# Color function (pos vs neg)
+# -----------------------------
+get_colors <- function(x){
+  ifelse(x > 0, "#1F5F8B", "#6D6875")
+}
+
+# =========================================================
+# 1. Direct effect plot
+# =========================================================
+p1 <- ggplot(df, aes(x = Direct_Effect, y = Variable_Code)) +
+  
+  geom_bar(stat = "identity",
+           fill = get_colors(df$Direct_Effect),
+           color = "black",
+           width = 0.7) +
+  
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "black") +
+  
+  theme_minimal(base_size = 15) +
+  
+  labs(
+    title = "A",
+    x = "Effect size (direct effects)",
+    y = "Variable code"
+  ) +
+  
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+p1
+# =========================================================
+# 2. Indirect effect plot
+# =========================================================
+p2 <- ggplot(df, aes(x = Indirect_Effect, y = Variable_Code)) +
+  
+  geom_bar(stat = "identity",
+           fill = get_colors(df$Indirect_Effect),
+           color = "black",
+           width = 0.7) +
+  
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "black") +
+  
+  theme_minimal(base_size = 15) +
+  
+  labs(
+    title = "B",
+    x = "Effect size (Indirect (spillover) effects)",
+    y = "Variable code"
+  ) +
+  
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+p2
+# =========================================================
+# 3. Total effect plot
+# =========================================================
+p3 <- ggplot(df, aes(x = Total_Effect, y = Variable_Code)) +
+  
+  geom_bar(stat = "identity",
+           fill = get_colors(df$Total_Effect),
+           color = "black",
+           width = 0.7) +
+  
+  geom_vline(xintercept = 0,
+             linetype = "dashed",
+             color = "black") +
+  
+  theme_minimal(base_size = 15) +
+  
+  labs(
+    title = "C",
+    x = "Effect size (total effects)",
+    y = "Variable code"
+  ) +
+  
+  theme(
+    plot.title = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+p3
+# -----------------------------
+# Save all plots
+# -----------------------------
+ggsave("J:/Research/Research/NCDdeathsWorld/direct_effect.png", p1, width = 6, height = 5, dpi = 600)
+ggsave("J:/Research/Research/NCDdeathsWorld/indirect_effect.png", p2, width = 6, height = 5, dpi = 600)
+ggsave("J:/Research/Research/NCDdeathsWorld/total_effect.png", p3, width = 6, height = 5, dpi = 600)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# -----------------------------
+# Read data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/NCD_Spillover_Policy_Results.xlsx"
+df <- read_excel(file_path, sheet = "Country_Spillover_Matrix")
+
+# -----------------------------
+# Long format
+# -----------------------------
+df_long <- df %>%
+  pivot_longer(-Country,
+               names_to = "Target_Country",
+               values_to = "Spillover") %>%
+  filter(Country != Target_Country)
+
+# -----------------------------
+# Keep strong signals only (top 5%)
+# -----------------------------
+thr <- quantile(abs(df_long$Spillover), 0.95, na.rm = TRUE)
+
+df_sig <- df_long %>%
+  filter(abs(Spillover) >= thr)
+
+# -----------------------------
+# Select TOP countries (for readability)
+# -----------------------------
+top_countries <- df_sig %>%
+  group_by(Country) %>%
+  summarise(score = mean(abs(Spillover), na.rm = TRUE)) %>%
+  arrange(desc(score)) %>%
+  slice(1:25) %>%
+  pull(Country)
+
+df_sig <- df_sig %>%
+  filter(Country %in% top_countries,
+         Target_Country %in% top_countries)
+
+# -----------------------------
+# Order levels
+# -----------------------------
+df_sig$Country <- factor(df_sig$Country, levels = rev(top_countries))
+df_sig$Target_Country <- factor(df_sig$Target_Country, levels = top_countries)
+
+# -----------------------------
+# Plot
+# -----------------------------
+# -----------------------------
+# Better scaling limits
+# -----------------------------
+limit <- max(abs(df_sig$Spillover), na.rm = TRUE)
+
+p <- ggplot(df_sig,
+            aes(x = Target_Country,
+                y = Country,
+                fill = Spillover)) +
+  
+  geom_tile(color = "white", linewidth = 0.2) +
+  
+  scale_fill_gradient2(
+    low = "#1F3A5F",
+    mid = "orange",
+    high = "darkred",
+    midpoint = 0,
+    limits = c(-limit, limit),
+    oob = scales::squish,
+    name = "Spillover effect"
+  ) +
+  
+  theme_minimal(base_size = 15) +
+  
+  labs(
+    title = "D",
+    x = NULL,
+    y = NULL
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14),
+    axis.text.y = element_text(size = 14),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold", size = 16, hjust = -.2)
+  )
+p
+# -----------------------------
+# Save
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/spillover_heatmap_top25.png",
+  p,
+  width = 10,
+  height = 8,
+  dpi = 600
+)
+
+
+
+library(openxlsx)
+# -----------------------------
+# Save filtered spillover values to Excel
+# -----------------------------
+write.xlsx(
+  df_sig,
+  file = "J:/Research/Research/NCDdeathsWorld/1spillover_heatmap_values_top25.xlsx",
+  rowNames = FALSE
+)
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+
+# -----------------------------
+# Load data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/NCD_Spillover_Policy_Results.xlsx"
+
+df <- read_excel(file_path, sheet = "Region_Spillover_Matrix")
+
+# Fix first column
+colnames(df)[1] <- "Region"
+
+# -----------------------------
+# Long format
+# -----------------------------
+df_long <- df %>%
+  pivot_longer(
+    cols = -Region,
+    names_to = "Target_Region",
+    values_to = "Spillover"
+  ) %>%
+  filter(
+    !is.na(Spillover),
+    Region != "Other",
+    Target_Region != "Other"
+  )
+
+# -----------------------------
+# Region order (from data)
+# -----------------------------
+regions <- unique(df_long$Region)
+
+df_long$Region <- factor(df_long$Region, levels = regions)
+df_long$Target_Region <- factor(df_long$Target_Region, levels = regions)
+
+# -----------------------------
+# Robust scaling (IMPORTANT)
+# avoids extreme compression
+# -----------------------------
+lim <- quantile(abs(df_long$Spillover), 0.98, na.rm = TRUE)
+
+# -----------------------------
+# Heatmap
+# -----------------------------
+p <- ggplot(df_long,
+            aes(x = Target_Region,
+                y = Region,
+                fill = Spillover)) +
+  
+  geom_tile(color = "white", linewidth = 0.25) +
+  
+  scale_fill_gradient2(
+    low = "#1D3557",
+    mid = "skyblue",
+    high = "#E76F51",
+    midpoint = 0,
+    limits = c(-lim, lim),
+    oob = squish,
+    name = "Spillover effect"
+  ) +
+  
+  theme_minimal(base_size = 15) +
+  
+  labs(
+    title = "E",
+    x = "Receiving region",
+    y = "Sending region"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 40, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(face = "bold", hjust = -.2)
+  )
+
+p
+
+# -----------------------------
+# Save high resolution figure
+# -----------------------------
+ggsave(
+  filename = "J:/Research/Research/NCDdeathsWorld/region_spillover_heatmap.png",
+  plot = p,
+  width = 10,
+  height = 8,
+  dpi = 600
+)
+
+# -----------------------------
+# Save processed data
+# -----------------------------
+write.csv(df_long,
+          "J:/Research/Research/NCDdeathsWorld/region_spillover_long.csv",
+          row.names = FALSE)
+
+
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(writexl)
+
+# -----------------------------
+# Load data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/NCD_Spillover_Policy_Results.xlsx"
+df <- read_excel(file_path, sheet = "Country_Policy_Scorecard")
+
+# clean text
+df$Country <- trimws(df$Country)
+df$Feature_Code <- trimws(df$Feature_Code)
+
+# -----------------------------
+# 1. Country-feature heatmap table
+# -----------------------------
+heat_df <- df %>%
+  group_by(Country, Feature_Code) %>%
+  summarise(
+    value = mean(Est_Impact_on_Y, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# optional: keep only strongest signals
+lim <- quantile(abs(heat_df$value), 0.95, na.rm = TRUE)
+heat_df <- heat_df %>%
+  filter(abs(value) <= lim * 3)
+
+# reorder for better figure
+country_order <- heat_df %>%
+  group_by(Country) %>%
+  summarise(s = sum(abs(value))) %>%
+  arrange(desc(s)) %>%
+  pull(Country)
+
+feature_order <- heat_df %>%
+  group_by(Feature_Code) %>%
+  summarise(s = sum(abs(value))) %>%
+  arrange(desc(s)) %>%
+  pull(Feature_Code)
+
+heat_df$Country <- factor(heat_df$Country, levels = rev(country_order))
+heat_df$Feature_Code <- factor(heat_df$Feature_Code, levels = feature_order)
+
+# -----------------------------
+# Heatmap plot (policy impact structure)
+# -----------------------------
+p1 <- ggplot(heat_df,
+             aes(x = Feature_Code,
+                 y = Country,
+                 fill = value)) +
+  
+  geom_tile(color = "white", linewidth = 0.25) +
+  
+  scale_fill_gradient2(
+    low = "#1D3557",
+    mid = "white",
+    high = "#E63946",
+    midpoint = 0,
+    name = "Impact on NCD"
+  ) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(
+    title = "Policy impact structure across countries and drivers",
+    x = "Policy drivers",
+    y = "Countries"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold")
+  )
+
+p1
+
+# -----------------------------
+# 2. Feature importance style summary (global effect)
+# -----------------------------
+feature_summary <- df %>%
+  group_by(Feature_Code, Feature_Label) %>%
+  summarise(
+    mean_effect = mean(Est_Impact_on_Y, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(abs(mean_effect))) %>%
+  slice(1:10)
+
+# bar colors (non-standard soft palette)
+bar_cols <- scales::hue_pal(l = 65, c = 90)(nrow(feature_summary))
+
+p2 <- ggplot(feature_summary,
+             aes(x = reorder(Feature_Code, mean_effect),
+                 y = mean_effect,
+                 fill = Feature_Code)) +
+  
+  geom_bar(stat = "identity", color = "black") +
+  
+  coord_flip() +
+  
+  scale_fill_manual(values = bar_cols) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(
+    title = "Top policy drivers of NCD mortality",
+    x = "Feature",
+    y = "Mean impact"
+  ) +
+  
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold")
+  )
+
+p2
+
+# -----------------------------
+# 3. Country burden summary plot
+# -----------------------------
+country_summary <- df %>%
+  group_by(Country) %>%
+  summarise(total_impact = sum(Est_Impact_on_Y, na.rm = TRUE)) %>%
+  arrange(desc(total_impact)) %>%
+  slice(1:20)
+
+p3 <- ggplot(country_summary,
+             aes(x = reorder(Country, total_impact),
+                 y = total_impact,
+                 fill = Country)) +
+  
+  geom_bar(stat = "identity") +
+  
+  coord_flip() +
+  
+  scale_fill_manual(values = scales::hue_pal()(nrow(country_summary))) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(
+    title = "Countries with highest policy impact burden",
+    x = "Country",
+    y = "Total estimated impact"
+  ) +
+  
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold")
+  )
+
+p3
+
+# -----------------------------
+# Save plots (high resolution)
+# -----------------------------
+ggsave("J:/Research/Research/NCDdeathsWorld/policy_heatmap.png",
+       p1, width = 10, height = 10, dpi = 600)
+
+ggsave("J:/Research/Research/NCDdeathsWorld/feature_importance.png",
+       p2, width = 10, height = 10, dpi = 600)
+
+ggsave("J:/Research/Research/NCDdeathsWorld/country_burden.png",
+       p3, width = 10, height = 6, dpi = 600)
+
+# -----------------------------
+# Save processed tables
+# -----------------------------
+write_xlsx(list(
+  Heatmap_Data = heat_df,
+  Feature_Summary = feature_summary,
+  Country_Summary = country_summary
+),
+"J:/Research/Research/NCDdeathsWorld/policy_visualization_tables.xlsx")
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+# -----------------------------
+# Load data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/NCD_Spillover_Policy_Results.xlsx"
+df <- read_excel(file_path, sheet = "Country_Policy_Scorecard")
+
+# -----------------------------
+# Clean
+# -----------------------------
+df <- df %>%
+  mutate(
+    Country = trimws(Country),
+    Feature_Code = trimws(Feature_Code)
+  )
+
+# -----------------------------
+# Policy score (rescaled to avoid 10^6 problem)
+# -----------------------------
+df <- df %>%
+  mutate(
+    Score = (Gap_vs_Benchmark * Est_Impact_on_Y) / 1e6
+  )
+
+# -----------------------------
+# keep meaningful range only
+# -----------------------------
+lim <- quantile(abs(df$Score), 0.95, na.rm = TRUE)
+
+df_plot <- df %>%
+  filter(abs(Score) <= lim)
+
+# -----------------------------
+# top countries for readability
+# -----------------------------
+top_countries <- df_plot %>%
+  group_by(Country) %>%
+  summarise(v = mean(abs(Score), na.rm = TRUE)) %>%
+  arrange(desc(v)) %>%
+  slice(1:25) %>%
+  pull(Country)
+
+df_plot <- df_plot %>%
+  filter(Country %in% top_countries)
+
+# -----------------------------
+# ordering
+# -----------------------------
+df_plot$Country <- factor(df_plot$Country, levels = rev(top_countries))
+
+df_plot$Feature_Code <- factor(df_plot$Feature_Code,
+                               levels = unique(df_plot$Feature_Code))
+
+# -----------------------------
+# stable color range
+# -----------------------------
+limit <- max(abs(df_plot$Score), na.rm = TRUE)
+
+# -----------------------------
+# Heatmap
+# -----------------------------
+p <- ggplot(df_plot,
+            aes(x = Feature_Code,
+                y = Country,
+                fill = Score)) +
+  
+  geom_tile(color = "white", linewidth = 0.2) +
+  
+  scale_fill_gradient2(
+    low = "#1D3557",
+    mid = "skyblue",
+    high = "#E63946",
+    midpoint = 0,
+    limits = c(-limit, limit),
+    oob = squish,
+    name = "Policy effect\n(million scale)"
+  ) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(
+    title = "Country–Policy Impact Heatmap (Scaled)",
+    x = "Policy variables",
+    y = "Countries"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+    axis.text.y = element_text(size = 7),
+    panel.grid = element_blank(),
+    plot.title = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+p
+
+# -----------------------------
+# Save
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/country_policy_heatmap_clean.png",
+  p,
+  width = 14,
+  height = 10,
+  dpi = 600
+)
+
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+# -----------------------------
+# Load data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/NCD_Spillover_Policy_Results.xlsx"
+df <- read_excel(file_path, sheet = "Country_Policy_Scorecard")
+
+# -----------------------------
+# Clean
+# -----------------------------
+df <- df %>%
+  mutate(
+    Country = trimws(Country),
+    Benchmark = trimws(Top_Benchmark),
+    Feature = trimws(Feature_Code)
+  )
+
+# -----------------------------
+# Policy score
+# -----------------------------
+df <- df %>%
+  mutate(
+    Score = Gap_vs_Benchmark * Est_Impact_on_Y
+  )
+
+# -----------------------------
+# Remove extreme values
+# -----------------------------
+lim <- quantile(abs(df$Score), 0.95, na.rm = TRUE)
+
+df <- df %>%
+  filter(abs(Score) <= lim)
+
+# -----------------------------
+# Top countries (readability)
+# -----------------------------
+top_countries <- df %>%
+  group_by(Country) %>%
+  summarise(v = mean(abs(Score))) %>%
+  arrange(desc(v)) %>%
+  slice(1:20) %>%
+  pull(Country)
+
+df_plot <- df %>%
+  filter(Country %in% top_countries)
+
+# -----------------------------
+# Keep TOP 2 policies per country
+# -----------------------------
+df_plot <- df_plot %>%
+  group_by(Country) %>%
+  slice_max(abs(Score), n = 2) %>%
+  ungroup()
+
+# -----------------------------
+# Order
+# -----------------------------
+df_plot$Country <- factor(df_plot$Country, levels = rev(top_countries))
+
+# -----------------------------
+# Plot
+# -----------------------------
+p <- ggplot(df_plot,
+            aes(x = Feature,
+                y = Country,
+                fill = Score)) +
+  
+  geom_tile(color = "white", linewidth = 0.3) +
+  
+  geom_text(aes(label = Benchmark),
+            size = 2.5) +
+  
+  scale_fill_gradient2(
+    low = "#1D3557",
+    mid = "skyblue",
+    high = "#E63946",
+    midpoint = 0,
+    name = "Policy effect"
+  ) +
+  
+  theme_minimal(base_size = 15) +
+  
+  labs(
+    title = "F",
+   
+    x = "Policy variable",
+    y = "Country"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+    axis.text.y = element_text(size = 12),
+    panel.grid = element_blank(),
+    legend.position = "right",
+    plot.title = element_text(face = "bold", size = 16, hjust = -.3)
+  )
+
+p
+
+# -----------------------------
+# Save
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/policy_benchmark_heatmap.png",
+  p,
+  width = 12,
+  height = 6,
+  dpi = 600
+)
+
+
+
+
+
+
+# -----------------------------
+# Libraries
+# -----------------------------
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+# -----------------------------
+# Load data
+# -----------------------------
+file_path <- "J:/Research/Research/NCDdeathsWorld/NCD_Spillover_Policy_Results.xlsx"
+df <- read_excel(file_path, sheet = "Country_Policy_Scorecard")
+
+# -----------------------------
+# Clean
+# -----------------------------
+df <- df %>%
+  mutate(
+    Country = trimws(Country),
+    Benchmark = trimws(Top_Benchmark),
+    Feature = trimws(Feature_Code)
+  )
+
+# -----------------------------
+# Policy score
+# -----------------------------
+df <- df %>%
+  mutate(
+    Score = Gap_vs_Benchmark * Est_Impact_on_Y
+  )
+
+# -----------------------------
+# Direction symbol
+# -----------------------------
+df <- df %>%
+  mutate(
+    Direction_Symbol = ifelse(Policy_Direction == "Increase", "↑", "↓"),
+    Label = paste0(Benchmark, "\n", Direction_Symbol)
+  )
+
+# -----------------------------
+# Reduce noise
+# -----------------------------
+df <- df %>%
+  group_by(Country) %>%
+  slice_max(abs(Score), n = 2) %>%
+  ungroup()
+
+# -----------------------------
+# Plot
+# -----------------------------
+p <- ggplot(df,
+            aes(x = Feature,
+                y = Country,
+                fill = Score)) +
+  
+  geom_tile(color = "white", linewidth = 0.3) +
+  
+  geom_text(aes(label = Label),
+            size = 2.5) +
+  
+  scale_fill_gradient2(
+    low = "#1D3557",
+    mid = "white",
+    high = "#E63946",
+    midpoint = 0,
+    name = "Policy effect"
+  ) +
+  
+  theme_minimal(base_size = 12) +
+  
+  labs(
+    title = "Policy benchmark with direction",
+    subtitle = "Text = benchmark country + action direction",
+    x = "Policy variable",
+    y = "Country"
+  ) +
+  
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank(),
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold")
+  )
+
+p
+
+# -----------------------------
+# Save
+# -----------------------------
+ggsave(
+  "J:/Research/Research/NCDdeathsWorld/policy_benchmark_direction.png",
+  p,
+  width = 14,
+  height = 10,
+  dpi = 600
+)
+
+
+
+
+
+
+
+
+
